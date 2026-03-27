@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Release script for Python buildpack with uv support
+
+cat <<EOF
+---
+default_process_types:
+  web: python app.py
+EOF

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Detect script for Python buildpack with uv support
+
+if [ -f "pyproject.toml" ]; then
+  echo "python-uv"
+  exit 0
+fi
+
+exit 1

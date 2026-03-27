@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Compile script for Python buildpack with uv support
+
+set -e
+BUILD_DIR=$1
+CACHE_DIR=$2
+ENV_DIR=$3
+
+cd "$BUILD_DIR"
+
+# Install Python if not present (optional: add logic here)
+
+# Detect and install uv
+if grep -q '\[tool.uv\]' pyproject.toml || grep -q '\[project\]' pyproject.toml; then
+  echo "Detected uv. Installing dependencies with uv."
+  pip install uv
+  uv pip install -r requirements.txt || uv pip install
+else
+  echo "No supported dependency manager found."
+  exit 1
+fi
+    
