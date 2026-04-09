@@ -6,7 +6,7 @@ ROOT_DIR := $(CURDIR)
 BUILDPACK_DIR := $(ROOT_DIR)
 PYTHON_BIN ?= python3
 
-.PHONY: test-buildpack clean-test-buildpack test-unit test-detect test-compile test-release smoke-test start-local
+.PHONY: test-buildpack clean-test-buildpack unit-test smoke-test start-local
 
 # Reset the temporary staging directories used for local buildpack testing.
 clean-test-buildpack:
