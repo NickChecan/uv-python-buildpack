@@ -22,6 +22,12 @@ This command:
 - verifies the staged dependencies can be imported
 - prints the `bin/release` output
 
+You can also run other smoke test projects by specifying its directory. For example:
+
+```sh
+make test-buildpack APP_DIR=test/smoke/my-app-2
+```
+
 If you want to remove the temporary staging directories before or after a run:
 
 ```sh
