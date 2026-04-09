@@ -6,23 +6,11 @@ ROOT_DIR := $(CURDIR)
 BUILDPACK_DIR := $(ROOT_DIR)
 PYTHON_BIN ?= python3
 
-.PHONY: test-buildpack clean-test-buildpack test-detect test-compile test-release smoke-test start-local
+.PHONY: test-buildpack clean-test-buildpack test-unit test-detect test-compile test-release smoke-test start-local
 
 # Reset the temporary staging directories used for local buildpack testing.
 clean-test-buildpack:
 	rm -rf $(BUILD_DIR) $(CACHE_DIR) $(ENV_DIR)
-
-# Run unit tests for the detect script without requiring external test tooling.
-test-detect:
-	@bash ./test/unit/detect_test.sh
-
-# Run unit tests for the compile script with stubbed python and uv commands.
-test-compile:
-	@bash ./test/unit/compile_test.sh
-
-# Run unit tests for the release script command-resolution logic.
-test-release:
-	@bash ./test/unit/release_test.sh
 
 # Run the sample app through detect, compile, and release using the same
 # temporary directories each time so local testing is repeatable.
@@ -35,10 +23,6 @@ test-buildpack: clean-test-buildpack
 	# Confirm staged dependencies are importable before checking the release metadata.
 	cd $(BUILD_DIR) && /bin/bash -lc 'source .profile.d/python.sh && $(PYTHON_BIN) -c "import fastapi; print(fastapi.__version__)"'
 	cd $(BUILD_DIR) && $(BUILDPACK_DIR)/bin/release
-
-# Run the single-app smoke test target against every app fixture under test/smoke.
-smoke-test:
-	@./scripts/smoke-test.sh
 
 # Start the staged sample app locally using the dependencies prepared by `test-buildpack`.
 start-local:
@@ -57,3 +41,11 @@ start-local:
 		# Local machines often expose `python3` instead of `python`, so normalize that here. \
 		WEB_CMD=$$(printf "%s" "$$WEB_CMD" | sed "s/^python /$(PYTHON_BIN) /"); \
 		eval "$$WEB_CMD"'
+
+# Run the single-app smoke test target against every app fixture under test/smoke.
+smoke-test:
+	@./scripts/smoke-test.sh
+
+# Run all lightweight script-level unit tests together.
+unit-test: 
+	@./scripts/unit-test.sh
