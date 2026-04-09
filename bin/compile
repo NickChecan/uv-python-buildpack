@@ -17,6 +17,17 @@ else
   exit 1
 fi
 
+ensure_pip() {
+  # Some CF Python runtimes do not expose pip by default, so bootstrap it
+  # before the buildpack tries to install uv or exported dependencies.
+  if "$PYTHON_BIN" -m pip --version >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "pip not found for $PYTHON_BIN. Bootstrapping with ensurepip."
+  "$PYTHON_BIN" -m ensurepip --upgrade
+}
+
 cd "$BUILD_DIR"
 
 # Only treat the app as a supported uv project when both the project
@@ -30,10 +41,14 @@ if [ -f "pyproject.toml" ] && [ -f "uv.lock" ]; then
 
   mkdir -p "$PIP_CACHE_DIR" "$UV_CACHE_DIR"
 
+  # Install uv into the selected interpreter so the buildpack can export the
+  # exact locked dependency set from the app's uv.lock file.
+  ensure_pip
   "$PYTHON_BIN" -m pip install uv
 
   PYTHON_VERSION=$("$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-  # Stage dependencies into a buildpack-owned location instead of a local venv.
+  # Stage dependencies into a buildpack-owned location instead of a local venv
+  # because CF launches the app from the droplet, not from a project virtualenv.
   SITE_PACKAGES_DIR="$BUILD_DIR/.python_packages/lib/python${PYTHON_VERSION}/site-packages"
   SRC_DIR="$BUILD_DIR/src"
   PROFILE_DIR="$BUILD_DIR/.profile.d"

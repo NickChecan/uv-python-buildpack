@@ -67,6 +67,7 @@ assert_path_exists() {
 }
 
 setup_fake_commands() {
+  local pip_available="${1:-1}"
   mkdir -p "$FAKE_BIN_DIR"
 
   cat > "$FAKE_BIN_DIR/python3" <<'EOF'
@@ -75,6 +76,23 @@ set -euo pipefail
 
 if [ "$#" -ge 2 ] && [ "$1" = "-c" ] && [ "$2" = "import sys; print(f\"{sys.version_info.major}.{sys.version_info.minor}\")" ]; then
   printf '3.13\n'
+  exit 0
+fi
+
+if [ "$#" -ge 3 ] && [ "$1" = "-m" ] && [ "$2" = "pip" ] && [ "$3" = "--version" ]; then
+  if [ "${FAKE_PIP_AVAILABLE:-1}" = "1" ]; then
+    printf 'pip 24.0 from /fake/site-packages/pip (python 3.13)\n'
+    exit 0
+  fi
+
+  echo "No module named pip" >&2
+  exit 1
+fi
+
+if [ "$#" -ge 3 ] && [ "$1" = "-m" ] && [ "$2" = "ensurepip" ] && [ "$3" = "--upgrade" ]; then
+  log_file="${TEST_ROOT}/ensurepip.log"
+  mkdir -p "$(dirname "$log_file")"
+  printf '%s\n' "$*" >> "$log_file"
   exit 0
 fi
 
@@ -149,6 +167,7 @@ exit 1
 EOF
 
   chmod +x "$FAKE_BIN_DIR/python3" "$FAKE_BIN_DIR/uv"
+  FAKE_PIP_AVAILABLE="$pip_available"
 }
 
 run_compile() {
@@ -158,7 +177,7 @@ run_compile() {
   local output_file="$TEST_ROOT/output.txt"
 
   set +e
-  PATH="$FAKE_BIN_DIR:/usr/bin:/bin" TEST_ROOT="$TEST_ROOT" "$COMPILE_SCRIPT" "$build_dir" "$cache_dir" "$env_dir" >"$output_file" 2>&1
+  PATH="$FAKE_BIN_DIR:/usr/bin:/bin" TEST_ROOT="$TEST_ROOT" FAKE_PIP_AVAILABLE="${FAKE_PIP_AVAILABLE:-1}" "$COMPILE_SCRIPT" "$build_dir" "$cache_dir" "$env_dir" >"$output_file" 2>&1
   status=$?
   set -e
 
@@ -191,6 +210,26 @@ test_compile_succeeds_for_locked_uv_project() {
   assert_file_contains "$TEST_ROOT/uv.log" "export --locked --format requirements-txt --no-emit-local -o $export_file" "compile should export locked third-party dependencies"
   assert_file_contains "$TEST_ROOT/pip.log" "-m pip install uv" "compile should install uv with pip"
   assert_file_contains "$TEST_ROOT/pip.log" "--no-deps --target $site_packages_dir -r $export_file" "compile should install exported dependencies into the staged site-packages directory"
+}
+
+test_compile_bootstraps_pip_when_missing() {
+  # Arrange
+  local build_dir="$TEST_ROOT/missing-pip/build"
+  local cache_dir="$TEST_ROOT/missing-pip/cache"
+  local env_dir="$TEST_ROOT/missing-pip/env"
+
+  mkdir -p "$build_dir" "$cache_dir" "$env_dir"
+  touch "$build_dir/pyproject.toml" "$build_dir/uv.lock"
+  setup_fake_commands 0
+
+  # Act
+  run_compile "$build_dir" "$cache_dir" "$env_dir"
+
+  # Assert
+  assert_exit_code "$status" 0 "compile should bootstrap pip when the interpreter does not ship it"
+  assert_contains "$output" "pip not found for python3. Bootstrapping with ensurepip." "compile should explain when it needs to bootstrap pip"
+  assert_file_contains "$TEST_ROOT/ensurepip.log" "-m ensurepip --upgrade" "compile should bootstrap pip before using it"
+  assert_file_contains "$TEST_ROOT/pip.log" "-m pip install uv" "compile should continue with pip installs after bootstrapping"
 }
 
 test_compile_adds_src_directory_to_pythonpath_when_present() {
@@ -231,6 +270,7 @@ test_compile_fails_when_lockfile_is_missing() {
 }
 
 test_compile_succeeds_for_locked_uv_project
+test_compile_bootstraps_pip_when_missing
 test_compile_adds_src_directory_to_pythonpath_when_present
 test_compile_fails_when_lockfile_is_missing
 
