@@ -2,9 +2,14 @@
 # Compile script for Python buildpack with uv support
 
 set -euo pipefail
+if [ "$#" -lt 2 ]; then
+  echo "Usage: $0 BUILD_DIR CACHE_DIR [ENV_DIR]"
+  exit 1
+fi
+
 BUILD_DIR=$1
 CACHE_DIR=$2
-ENV_DIR=$3
+ENV_DIR="${3:-}"
 UV_INSTALL_DIR="$CACHE_DIR/uv/bin"
 UV_BIN="$UV_INSTALL_DIR/uv"
 UV_PYTHON_INSTALL_ROOT="$BUILD_DIR/.uv/python"
