@@ -58,14 +58,6 @@ jobs:
       - name: Package buildpack
         run: buildpack-packager build -cached -any-stack
 
-      - name: Upload packaged buildpack
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
-        with:
-          name: packaged-buildpack
-          path: "*.zip"
-          if-no-files-found: error
-
   release-buildpack:
     name: Release Buildpack
     runs-on: ubuntu-latest
@@ -83,10 +75,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download packaged buildpack
-        uses: actions/download-artifact@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          name: packaged-buildpack
+          go-version: "1.22"
+
+      - name: Install buildpack-packager
+        run: go install github.com/cloudfoundry/libbuildpack/packager/buildpack-packager@latest
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -94,7 +89,7 @@ jobs:
           node-version: "22"
 
       - name: Install semantic-release
-        run: npm install --no-save semantic-release @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github conventional-changelog-conventionalcommits
+        run: npm install --no-save semantic-release @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github @semantic-release/exec conventional-changelog-conventionalcommits
 
       - name: Publish semantic release
         env:

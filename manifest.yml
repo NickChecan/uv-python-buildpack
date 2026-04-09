@@ -2,6 +2,7 @@
 language: python-uv
 
 include_files:
+  - VERSION
   - bin/compile
   - bin/detect
   - bin/release

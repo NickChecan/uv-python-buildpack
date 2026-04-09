@@ -17,6 +17,12 @@
       }
     ],
     [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "printf '%s\\n' <%= nextRelease.version %> > VERSION && buildpack-packager build -cached -any-stack"
+      }
+    ],
+    [
       "@semantic-release/github",
       {
         "assets": [
