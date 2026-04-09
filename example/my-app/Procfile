@@ -1,0 +1,1 @@
+web: .python/bin/python3 -c "from my_app.main import start; start()"
