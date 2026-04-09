@@ -1,0 +1,8 @@
+---
+language: python-uv
+
+include_files:
+  - bin/compile
+  - bin/detect
+  - bin/release
+  - manifest.yml
