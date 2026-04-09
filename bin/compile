@@ -67,14 +67,23 @@ install_managed_python() {
 
 write_python_shim() {
   local shim_path="$1"
-  local shim_name="$2"
-  local managed_python_relative="${PYTHON_BIN#"$BUILD_DIR"/}"
+  local python_executable_name
+
+  python_executable_name="$(basename "$PYTHON_BIN")"
 
   cat > "$shim_path" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 APP_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")/../.." && pwd)"
-exec "\$APP_DIR/$managed_python_relative" "\$@"
+
+for candidate in "\$APP_DIR"/.uv/python/*/bin/${python_executable_name}; do
+  if [ -x "\$candidate" ]; then
+    exec "\$candidate" "\$@"
+  fi
+done
+
+echo "Managed Python executable not found for ${python_executable_name} under \$APP_DIR/.uv/python" >&2
+exit 1
 EOF
   chmod +x "$shim_path"
 }
