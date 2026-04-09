@@ -1,4 +1,4 @@
-APP_DIR := test/my-app-1
+APP_DIR := test/smoke/my-app-1
 BUILD_DIR := /tmp/uv-bp-build
 CACHE_DIR := /tmp/uv-bp-cache
 ENV_DIR := /tmp/uv-bp-env
