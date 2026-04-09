@@ -12,7 +12,7 @@ fi
 # If the app provides its own Procfile, let Cloud Foundry use that.
 if [ -f "Procfile" ]; then
   exit 0
-# Otherwise, prefer a `start` entry under `[project.scripts]` in pyproject.toml.
+# Otherwise, prefer a script named after `project.name`, then fall back to `start`.
 elif [ -n "$PYTHON_BIN" ] && [ -f "pyproject.toml" ]; then
   START_TARGET=$("$PYTHON_BIN" -c '
 import sys
@@ -24,7 +24,11 @@ except ModuleNotFoundError:
 with open("pyproject.toml", "rb") as f:
     data = tomllib.load(f)
 
-print(data.get("project", {}).get("scripts", {}).get("start", ""))
+project = data.get("project", {})
+project_name = project.get("name", "")
+scripts = project.get("scripts", {})
+
+print(scripts.get(project_name) or scripts.get("start", ""))
 ')
 
   if [ -n "$START_TARGET" ]; then
