@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
 # Release script for Python buildpack with uv support
 
+# If the app provides its own Procfile, let Cloud Foundry use that.
+if [ -f "Procfile" ]; then
+  exit 0
+# Otherwise, choose a reasonable default entrypoint based on common app files.
+elif [ -f "main.py" ]; then
+  DEFAULT_WEB_PROCESS="python main.py"
+elif [ -f "app.py" ]; then
+  DEFAULT_WEB_PROCESS="python app.py"
+else
+  DEFAULT_WEB_PROCESS="python -m uvicorn main:app --host 0.0.0.0 --port \${PORT:-8000}"
+fi
+
 cat <<EOF
 ---
 default_process_types:
-  web: python app.py
+  web: ${DEFAULT_WEB_PROCESS}
 EOF
