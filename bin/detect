@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Detect script for Python buildpack with uv support
 
-if [ -f "pyproject.toml" ]; then
+# Detection succeeds only for uv-managed projects with a lockfile.
+if [ -f "pyproject.toml" ] && [ -f "uv.lock" ]; then
   echo "python-uv"
   exit 0
 fi
