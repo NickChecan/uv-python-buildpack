@@ -216,9 +216,9 @@ test_compile_succeeds_for_locked_uv_project() {
   assert_path_exists "$export_file" "compile should write the exported requirements file"
   assert_path_exists "$shim_dir/python3" "compile should create a python3 shim for runtime commands"
   assert_path_exists "$shim_dir/python" "compile should create a python shim for runtime commands"
-  assert_file_contains "$profile_file" "$site_packages_dir" "profile script should add staged dependencies to PYTHONPATH"
-  assert_file_contains "$profile_file" "$shim_dir" "profile script should add the managed Python shims to PATH"
-  assert_file_contains "$profile_file" "$package_bin_dir" "profile script should add staged console scripts to PATH"
+  assert_file_contains "$profile_file" 'export APP_DIR="${HOME}/app"' "profile script should resolve paths from the droplet app directory at runtime"
+  assert_file_contains "$profile_file" '$APP_DIR/.python/bin:$APP_DIR/.python_packages/bin:${PATH}' "profile script should add the managed Python shims and staged console scripts to PATH"
+  assert_file_contains "$profile_file" '$APP_DIR/.python_packages/lib/python3.13/site-packages:${PYTHONPATH}' "profile script should add staged dependencies to PYTHONPATH"
   assert_file_contains "$TEST_ROOT/uv.log" "python install 3.13" "compile should install the Python version pinned by .python-version"
   assert_file_contains "$TEST_ROOT/uv.log" "python find --managed-python 3.13" "compile should resolve the managed interpreter path after installation"
   assert_file_contains "$TEST_ROOT/uv.log" "export --locked --format requirements-txt --no-emit-local -o $export_file" "compile should export locked third-party dependencies"
@@ -242,7 +242,7 @@ test_compile_adds_src_directory_to_pythonpath_when_present() {
 
   # Assert
   assert_exit_code "$status" 0 "compile should succeed for src-layout projects"
-  assert_file_contains "$profile_file" "$build_dir/src" "profile script should add src layout projects to PYTHONPATH"
+  assert_file_contains "$profile_file" '$APP_DIR/src:$APP_DIR/.python_packages/lib/python3.13/site-packages:${PYTHONPATH}' "profile script should add src layout projects to PYTHONPATH using runtime paths"
 }
 
 test_compile_accepts_two_argument_cf_invocation() {

@@ -133,13 +133,15 @@ if [ -f "pyproject.toml" ] && [ -f "uv.lock" ]; then
   # project itself is not installed by the exported third-party requirements.
   if [ -d "$SRC_DIR" ]; then
     cat > "$PROFILE_DIR/python.sh" <<EOF
-export PATH="$PYTHON_SHIM_DIR:$PACKAGE_BIN_DIR:\${PATH}"
-export PYTHONPATH="$SRC_DIR:$SITE_PACKAGES_DIR:\${PYTHONPATH}"
+export APP_DIR="\${HOME}/app"
+export PATH="\$APP_DIR/.python/bin:\$APP_DIR/.python_packages/bin:\${PATH}"
+export PYTHONPATH="\$APP_DIR/src:\$APP_DIR/.python_packages/lib/python${PYTHON_VERSION}/site-packages:\${PYTHONPATH}"
 EOF
   else
     cat > "$PROFILE_DIR/python.sh" <<EOF
-export PATH="$PYTHON_SHIM_DIR:$PACKAGE_BIN_DIR:\${PATH}"
-export PYTHONPATH="$SITE_PACKAGES_DIR:\${PYTHONPATH}"
+export APP_DIR="\${HOME}/app"
+export PATH="\$APP_DIR/.python/bin:\$APP_DIR/.python_packages/bin:\${PATH}"
+export PYTHONPATH="\$APP_DIR/.python_packages/lib/python${PYTHON_VERSION}/site-packages:\${PYTHONPATH}"
 EOF
   fi
 else
