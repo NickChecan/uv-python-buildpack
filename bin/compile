@@ -16,6 +16,8 @@ UV_PYTHON_INSTALL_ROOT="$BUILD_DIR/.uv/python"
 PYTHON_SHIM_DIR="$BUILD_DIR/.python/bin"
 
 install_uv() {
+  # Prefer an existing uv binary, but fall back to the standalone installer so
+  # the buildpack can bootstrap itself on stacks that do not ship uv.
   if command -v uv >/dev/null 2>&1; then
     UV_BIN="$(command -v uv)"
     return 0
@@ -55,6 +57,8 @@ install_managed_python() {
 
   python_request="$(resolve_python_request)"
   if [ -n "$python_request" ]; then
+    # Honor the app's requested runtime version so staging and runtime use the
+    # same Python family the project was locked and tested against.
     echo "Installing Python $python_request from .python-version."
     "$UV_BIN" python install "$python_request"
     PYTHON_BIN="$("$UV_BIN" python find --managed-python "$python_request")"
@@ -71,6 +75,9 @@ write_python_shim() {
 
   python_executable_name="$(basename "$PYTHON_BIN")"
 
+  # Cloud Foundry relocates the droplet between staging and runtime, so the
+  # wrapper must discover the managed interpreter relative to the app root
+  # instead of embedding an absolute staging path.
   cat > "$shim_path" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
@@ -132,12 +139,16 @@ if [ -f "pyproject.toml" ] && [ -f "uv.lock" ]; then
   # If the project uses a `src/` layout, include that too because the local
   # project itself is not installed by the exported third-party requirements.
   if [ -d "$SRC_DIR" ]; then
+    # Build droplet-relative paths at runtime because the app will launch from
+    # /home/vcap/app, not from the temporary staging directory used here.
     cat > "$PROFILE_DIR/python.sh" <<EOF
 export APP_DIR="\${HOME}/app"
 export PATH="\$APP_DIR/.python/bin:\$APP_DIR/.python_packages/bin:\${PATH}"
 export PYTHONPATH="\$APP_DIR/src:\$APP_DIR/.python_packages/lib/python${PYTHON_VERSION}/site-packages:\${PYTHONPATH}"
 EOF
   else
+    # Non-src-layout apps only need the staged site-packages directory plus the
+    # buildpack-managed interpreter and console scripts on PATH.
     cat > "$PROFILE_DIR/python.sh" <<EOF
 export APP_DIR="\${HOME}/app"
 export PATH="\$APP_DIR/.python/bin:\$APP_DIR/.python_packages/bin:\${PATH}"
