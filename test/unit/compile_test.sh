@@ -171,6 +171,19 @@ run_compile() {
   output="$(cat "$output_file")"
 }
 
+run_compile_without_env_dir() {
+  local build_dir="$1"
+  local cache_dir="$2"
+  local output_file="$TEST_ROOT/output.txt"
+
+  set +e
+  PATH="$FAKE_BIN_DIR:/usr/bin:/bin" TEST_ROOT="$TEST_ROOT" FAKE_MANAGED_PYTHON="$FAKE_MANAGED_PYTHON" "$COMPILE_SCRIPT" "$build_dir" "$cache_dir" >"$output_file" 2>&1
+  status=$?
+  set -e
+
+  output="$(cat "$output_file")"
+}
+
 test_compile_succeeds_for_locked_uv_project() {
   # Arrange
   local build_dir="$TEST_ROOT/success/build"
@@ -226,6 +239,24 @@ test_compile_adds_src_directory_to_pythonpath_when_present() {
   assert_file_contains "$profile_file" "$build_dir/src" "profile script should add src layout projects to PYTHONPATH"
 }
 
+test_compile_accepts_two_argument_cf_invocation() {
+  # Arrange
+  local build_dir="$TEST_ROOT/two-arg/build"
+  local cache_dir="$TEST_ROOT/two-arg/cache"
+
+  mkdir -p "$build_dir" "$cache_dir"
+  touch "$build_dir/pyproject.toml" "$build_dir/uv.lock"
+  printf '3.13\n' > "$build_dir/.python-version"
+  setup_fake_commands
+
+  # Act
+  run_compile_without_env_dir "$build_dir" "$cache_dir"
+
+  # Assert
+  assert_exit_code "$status" 0 "compile should accept Cloud Foundry invocations that omit ENV_DIR"
+  assert_contains "$output" "Detected uv project with lockfile. Installing dependencies with uv." "compile should still run normally when ENV_DIR is omitted"
+}
+
 test_compile_fails_when_lockfile_is_missing() {
   # Arrange
   local build_dir="$TEST_ROOT/missing-lock/build"
@@ -247,6 +278,7 @@ test_compile_fails_when_lockfile_is_missing() {
 
 test_compile_succeeds_for_locked_uv_project
 test_compile_adds_src_directory_to_pythonpath_when_present
+test_compile_accepts_two_argument_cf_invocation
 test_compile_fails_when_lockfile_is_missing
 
 echo "PASS: compile unit tests"
