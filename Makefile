@@ -6,7 +6,7 @@ ROOT_DIR := $(CURDIR)
 BUILDPACK_DIR := $(ROOT_DIR)
 PYTHON_BIN ?= python3
 
-.PHONY: test-buildpack clean-test-buildpack test-detect test-compile smoke-test start-local
+.PHONY: test-buildpack clean-test-buildpack test-detect test-compile test-release smoke-test start-local
 
 # Reset the temporary staging directories used for local buildpack testing.
 clean-test-buildpack:
@@ -19,6 +19,10 @@ test-detect:
 # Run unit tests for the compile script with stubbed python and uv commands.
 test-compile:
 	@bash ./test/unit/compile_test.sh
+
+# Run unit tests for the release script command-resolution logic.
+test-release:
+	@bash ./test/unit/release_test.sh
 
 # Run the sample app through detect, compile, and release using the same
 # temporary directories each time so local testing is repeatable.

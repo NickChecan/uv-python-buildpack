@@ -62,6 +62,10 @@ if [ -z "$DEFAULT_WEB_PROCESS" ] && [ -f "app.py" ]; then
   DEFAULT_WEB_PROCESS="${PYTHON_BIN} app.py"
 fi
 
+if [ -z "$DEFAULT_WEB_PROCESS" ]; then
+  DEFAULT_WEB_PROCESS="${PYTHON_BIN} -m uvicorn main:app --host 0.0.0.0 --port \${PORT:-8000}"
+fi
+
 cat <<EOF
 ---
 default_process_types:
