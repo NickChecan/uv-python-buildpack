@@ -6,17 +6,51 @@ BUILD_DIR=$1
 CACHE_DIR=$2
 ENV_DIR=$3
 
+# Cloud Foundry environments may expose either `python3` or `python`,
+# so resolve one interpreter once and reuse it for the whole build.
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN="python3"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+else
+  echo "Python interpreter not found. Expected python3 or python on PATH."
+  exit 1
+fi
+
 cd "$BUILD_DIR"
 
-# Install Python if not present (optional: add logic here)
+# Only treat the app as a supported uv project when both the project
+# metadata and the lockfile are present.
+if [ -f "pyproject.toml" ] && [ -f "uv.lock" ]; then
+  echo "Detected uv project with lockfile. Installing dependencies with uv."
+  # Keep installer caches inside the buildpack cache directory so repeated
+  # builds are faster and do not depend on user-specific cache locations.
+  export PIP_CACHE_DIR="$CACHE_DIR/pip"
+  export UV_CACHE_DIR="$CACHE_DIR/uv"
 
-# Detect and install uv
-if grep -q '\[tool.uv\]' pyproject.toml || grep -q '\[project\]' pyproject.toml; then
-  echo "Detected uv. Installing dependencies with uv."
-  pip install uv
-  uv pip install -r requirements.txt || uv pip install
+  mkdir -p "$PIP_CACHE_DIR" "$UV_CACHE_DIR"
+
+  "$PYTHON_BIN" -m pip install uv
+
+  PYTHON_VERSION=$("$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+  # Stage dependencies into a buildpack-owned location instead of a local venv.
+  SITE_PACKAGES_DIR="$BUILD_DIR/.python_packages/lib/python${PYTHON_VERSION}/site-packages"
+  PROFILE_DIR="$BUILD_DIR/.profile.d"
+  EXPORT_FILE="$BUILD_DIR/.uv-export-requirements.txt"
+
+  mkdir -p "$SITE_PACKAGES_DIR" "$PROFILE_DIR"
+
+  # Export the exact locked dependency set from uv, then install those
+  # packages into the staged site-packages directory.
+  uv export --locked --format requirements-txt -o "$EXPORT_FILE"
+  "$PYTHON_BIN" -m pip install --no-deps --target "$SITE_PACKAGES_DIR" -r "$EXPORT_FILE"
+
+  # Add the staged packages to PYTHONPATH so the app can import them at runtime.
+  cat > "$PROFILE_DIR/python.sh" <<EOF
+export PYTHONPATH="$SITE_PACKAGES_DIR:\${PYTHONPATH}"
+EOF
 else
-  echo "No supported dependency manager found."
+  echo "No supported uv project found. Expected both pyproject.toml and uv.lock."
   exit 1
 fi
     
