@@ -216,7 +216,7 @@ test_compile_succeeds_for_locked_uv_project() {
   assert_path_exists "$export_file" "compile should write the exported requirements file"
   assert_path_exists "$shim_dir/python3" "compile should create a python3 shim for runtime commands"
   assert_path_exists "$shim_dir/python" "compile should create a python shim for runtime commands"
-  assert_file_contains "$profile_file" 'export APP_DIR="${HOME}/app"' "profile script should resolve paths from the droplet app directory at runtime"
+  assert_file_contains "$profile_file" 'export APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"' "profile script should resolve the app directory dynamically at runtime"
   assert_file_contains "$profile_file" '$APP_DIR/.python/bin:$APP_DIR/.python_packages/bin:${PATH}' "profile script should add the managed Python shims and staged console scripts to PATH"
   assert_file_contains "$profile_file" '$APP_DIR/.python_packages/lib/python3.13/site-packages:${PYTHONPATH}' "profile script should add staged dependencies to PYTHONPATH"
   assert_file_contains "$TEST_ROOT/uv.log" "python install 3.13" "compile should install the Python version pinned by .python-version"

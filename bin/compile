@@ -139,10 +139,10 @@ if [ -f "pyproject.toml" ] && [ -f "uv.lock" ]; then
   # If the project uses a `src/` layout, include that too because the local
   # project itself is not installed by the exported third-party requirements.
   if [ -d "$SRC_DIR" ]; then
-    # Build droplet-relative paths at runtime because the app will launch from
-    # /home/vcap/app, not from the temporary staging directory used here.
+    # Resolve the app root from the sourced profile script so the same file
+    # works in both local smoke tests and the relocated CF droplet.
     cat > "$PROFILE_DIR/python.sh" <<EOF
-export APP_DIR="\${HOME}/app"
+export APP_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
 export PATH="\$APP_DIR/.python/bin:\$APP_DIR/.python_packages/bin:\${PATH}"
 export PYTHONPATH="\$APP_DIR/src:\$APP_DIR/.python_packages/lib/python${PYTHON_VERSION}/site-packages:\${PYTHONPATH}"
 EOF
@@ -150,7 +150,7 @@ EOF
     # Non-src-layout apps only need the staged site-packages directory plus the
     # buildpack-managed interpreter and console scripts on PATH.
     cat > "$PROFILE_DIR/python.sh" <<EOF
-export APP_DIR="\${HOME}/app"
+export APP_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
 export PATH="\$APP_DIR/.python/bin:\$APP_DIR/.python_packages/bin:\${PATH}"
 export PYTHONPATH="\$APP_DIR/.python_packages/lib/python${PYTHON_VERSION}/site-packages:\${PYTHONPATH}"
 EOF
