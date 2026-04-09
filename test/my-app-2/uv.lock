@@ -110,9 +110,9 @@ wheels = [
 ]
 
 [[package]]
-name = "my-app"
+name = "my-app-2"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "uvicorn", extra = ["standard"] },
