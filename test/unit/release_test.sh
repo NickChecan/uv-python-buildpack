@@ -175,9 +175,9 @@ test_release_falls_back_to_app_py() {
   assert_contains "$output" 'web: python3 app.py' "release should use app.py when main.py is absent"
 }
 
-test_release_uses_uvicorn_fallback_when_no_entrypoint_exists() {
+test_release_leaves_web_process_empty_when_no_entrypoint_exists() {
   # Arrange
-  local app_dir="$TEST_ROOT/uvicorn-fallback-app"
+  local app_dir="$TEST_ROOT/no-entrypoint-app"
   mkdir -p "$app_dir"
   setup_fake_python_commands
 
@@ -186,7 +186,9 @@ test_release_uses_uvicorn_fallback_when_no_entrypoint_exists() {
 
   # Assert
   assert_exit_code "$status" 0 "release should still succeed when no explicit entrypoint exists"
-  assert_contains "$output" 'web: python3 -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}' "release should emit the uvicorn fallback command"
+  assert_contains "$output" 'default_process_types:' "release should still emit release metadata"
+  assert_contains "$output" '  web: ' "release should leave the web process empty when no entrypoint exists"
+  assert_not_contains "$output" 'uvicorn' "release should not emit the removed uvicorn fallback"
 }
 
 test_release_exits_when_procfile_exists
@@ -194,6 +196,6 @@ test_release_prefers_project_name_script_over_start
 test_release_falls_back_to_start_script
 test_release_falls_back_to_main_py
 test_release_falls_back_to_app_py
-test_release_uses_uvicorn_fallback_when_no_entrypoint_exists
+test_release_leaves_web_process_empty_when_no_entrypoint_exists
 
 echo "PASS: release unit tests"
