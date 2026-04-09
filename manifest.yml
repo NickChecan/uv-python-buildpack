@@ -1,0 +1,12 @@
+---
+language: python-uv
+default_versions: []
+dependency_deprecation_dates: []
+dependencies: []
+
+include_files:
+  - VERSION
+  - bin/compile
+  - bin/detect
+  - bin/release
+  - manifest.yml
