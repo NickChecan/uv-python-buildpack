@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Release script for Python buildpack with uv support
 
-if command -v python3 >/dev/null 2>&1; then
+if [ -x ".python/bin/python3" ]; then
+  PYTHON_BIN=".python/bin/python3"
+elif [ -x ".python/bin/python" ]; then
+  PYTHON_BIN=".python/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
   PYTHON_BIN="python3"
 elif command -v python >/dev/null 2>&1; then
   PYTHON_BIN="python"

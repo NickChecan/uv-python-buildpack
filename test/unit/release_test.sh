@@ -145,6 +145,33 @@ EOF
   assert_contains "$output" 'web: python3 -c "from server.main import start; start()"' "release should fall back to the start script"
 }
 
+test_release_prefers_buildpack_managed_python_when_present() {
+  # Arrange
+  local app_dir="$TEST_ROOT/managed-python-app"
+  mkdir -p "$app_dir/.python/bin"
+  setup_fake_python_commands
+  cat > "$app_dir/pyproject.toml" <<'EOF'
+[project]
+name = "my-app"
+
+[project.scripts]
+start = "server.main:start"
+EOF
+  cat > "$app_dir/.python/bin/python3" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exec "$REAL_PYTHON3" "$@"
+EOF
+  chmod +x "$app_dir/.python/bin/python3"
+
+  # Act
+  run_release "$app_dir"
+
+  # Assert
+  assert_exit_code "$status" 0 "release should succeed when the buildpack-managed python is present"
+  assert_contains "$output" 'web: .python/bin/python3 -c "from server.main import start; start()"' "release should prefer the buildpack-managed python shim"
+}
+
 test_release_falls_back_to_main_py() {
   # Arrange
   local app_dir="$TEST_ROOT/main-py-app"
@@ -194,6 +221,7 @@ test_release_leaves_web_process_empty_when_no_entrypoint_exists() {
 test_release_exits_when_procfile_exists
 test_release_prefers_project_name_script_over_start
 test_release_falls_back_to_start_script
+test_release_prefers_buildpack_managed_python_when_present
 test_release_falls_back_to_main_py
 test_release_falls_back_to_app_py
 test_release_leaves_web_process_empty_when_no_entrypoint_exists
