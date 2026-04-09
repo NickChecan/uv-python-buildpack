@@ -1,5 +1,8 @@
 ---
 language: python-uv
+default_versions: []
+dependency_deprecation_dates: []
+dependencies: []
 
 include_files:
   - VERSION
