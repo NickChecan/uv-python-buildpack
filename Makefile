@@ -1,4 +1,4 @@
-APP_DIR := test/my-app-1
+APP_DIR := test/my-app-4
 BUILD_DIR := /tmp/uv-bp-build
 CACHE_DIR := /tmp/uv-bp-cache
 ENV_DIR := /tmp/uv-bp-env
@@ -35,4 +35,5 @@ start-local:
 			echo "Could not determine a web command to run locally."; \
 			exit 1; \
 		fi; \
+		WEB_CMD=$$(printf "%s" "$$WEB_CMD" | sed "s/^python /$(PYTHON_BIN) /"); \
 		eval "$$WEB_CMD"'
