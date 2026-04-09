@@ -89,31 +89,32 @@ if [ -f "pyproject.toml" ] && [ -f "uv.lock" ]; then
   PYTHON_VERSION=$("$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
   # Stage dependencies into a buildpack-owned location instead of a local venv
   # because CF launches the app from the droplet, not from a project virtualenv.
+  PACKAGE_HOME="$BUILD_DIR/.python_packages"
+  PACKAGE_BIN_DIR="$PACKAGE_HOME/bin"
   SITE_PACKAGES_DIR="$BUILD_DIR/.python_packages/lib/python${PYTHON_VERSION}/site-packages"
   SRC_DIR="$BUILD_DIR/src"
   PROFILE_DIR="$BUILD_DIR/.profile.d"
   EXPORT_FILE="$BUILD_DIR/.uv-export-requirements.txt"
 
-  mkdir -p "$SITE_PACKAGES_DIR" "$PROFILE_DIR"
+  mkdir -p "$SITE_PACKAGES_DIR" "$PACKAGE_BIN_DIR" "$PROFILE_DIR"
 
   # Export the exact locked dependency set from uv, then install those
-  # packages into the staged site-packages directory. Use `uv pip` instead of
-  # `python -m pip` because uv-managed Python installations are intentionally
-  # marked as externally managed.
+  # packages into a staged prefix so console scripts like `uvicorn` land in a
+  # buildpack-owned bin directory that we can add to PATH at runtime.
   "$UV_BIN" export --locked --format requirements-txt --no-emit-local -o "$EXPORT_FILE"
-  "$UV_BIN" pip install --python "$PYTHON_BIN" --no-deps --target "$SITE_PACKAGES_DIR" -r "$EXPORT_FILE"
+  "$UV_BIN" pip install --python "$PYTHON_BIN" --no-deps --prefix "$PACKAGE_HOME" -r "$EXPORT_FILE"
 
   # Add the staged packages to PYTHONPATH so the app can import them at runtime.
   # If the project uses a `src/` layout, include that too because the local
   # project itself is not installed by the exported third-party requirements.
   if [ -d "$SRC_DIR" ]; then
     cat > "$PROFILE_DIR/python.sh" <<EOF
-export PATH="$PYTHON_SHIM_DIR:\${PATH}"
+export PATH="$PYTHON_SHIM_DIR:$PACKAGE_BIN_DIR:\${PATH}"
 export PYTHONPATH="$SRC_DIR:$SITE_PACKAGES_DIR:\${PYTHONPATH}"
 EOF
   else
     cat > "$PROFILE_DIR/python.sh" <<EOF
-export PATH="$PYTHON_SHIM_DIR:\${PATH}"
+export PATH="$PYTHON_SHIM_DIR:$PACKAGE_BIN_DIR:\${PATH}"
 export PYTHONPATH="$SITE_PACKAGES_DIR:\${PYTHONPATH}"
 EOF
   fi

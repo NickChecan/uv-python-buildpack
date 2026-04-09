@@ -121,14 +121,14 @@ REQ
 fi
 
 if [ "$1" = "pip" ] && [ "$2" = "install" ]; then
-  target_dir=""
+  prefix_dir=""
   requirements_file=""
 
   while [ "$#" -gt 0 ]; do
     case "$1" in
-      --target)
+      --prefix)
         shift
-        target_dir="$1"
+        prefix_dir="$1"
         ;;
       -r)
         shift
@@ -138,9 +138,11 @@ if [ "$1" = "pip" ] && [ "$2" = "install" ]; then
     shift || true
   done
 
-  if [ -n "$target_dir" ]; then
-    mkdir -p "$target_dir"
-    touch "$target_dir/fake-installed-package.txt"
+  if [ -n "$prefix_dir" ]; then
+    mkdir -p "$prefix_dir/bin"
+    touch "$prefix_dir/bin/uvicorn"
+    mkdir -p "$prefix_dir/lib/python3.13/site-packages"
+    touch "$prefix_dir/lib/python3.13/site-packages/fake-installed-package.txt"
   fi
 
   if [ -n "$requirements_file" ]; then
@@ -189,6 +191,8 @@ test_compile_succeeds_for_locked_uv_project() {
   local build_dir="$TEST_ROOT/success/build"
   local cache_dir="$TEST_ROOT/success/cache"
   local env_dir="$TEST_ROOT/success/env"
+  local package_home="$build_dir/.python_packages"
+  local package_bin_dir="$package_home/bin"
   local site_packages_dir="$build_dir/.python_packages/lib/python3.13/site-packages"
   local profile_file="$build_dir/.profile.d/python.sh"
   local export_file="$build_dir/.uv-export-requirements.txt"
@@ -207,16 +211,18 @@ test_compile_succeeds_for_locked_uv_project() {
   assert_contains "$output" "Detected uv project with lockfile. Installing dependencies with uv." "compile should announce supported uv projects"
   assert_contains "$output" "Installing Python 3.13 from .python-version." "compile should install the requested Python version"
   assert_path_exists "$site_packages_dir" "compile should create the staged site-packages directory"
+  assert_path_exists "$package_bin_dir/uvicorn" "compile should stage console scripts into the package bin directory"
   assert_path_exists "$profile_file" "compile should write a profile script for runtime imports"
   assert_path_exists "$export_file" "compile should write the exported requirements file"
   assert_path_exists "$shim_dir/python3" "compile should create a python3 shim for runtime commands"
   assert_path_exists "$shim_dir/python" "compile should create a python shim for runtime commands"
   assert_file_contains "$profile_file" "$site_packages_dir" "profile script should add staged dependencies to PYTHONPATH"
   assert_file_contains "$profile_file" "$shim_dir" "profile script should add the managed Python shims to PATH"
+  assert_file_contains "$profile_file" "$package_bin_dir" "profile script should add staged console scripts to PATH"
   assert_file_contains "$TEST_ROOT/uv.log" "python install 3.13" "compile should install the Python version pinned by .python-version"
   assert_file_contains "$TEST_ROOT/uv.log" "python find --managed-python 3.13" "compile should resolve the managed interpreter path after installation"
   assert_file_contains "$TEST_ROOT/uv.log" "export --locked --format requirements-txt --no-emit-local -o $export_file" "compile should export locked third-party dependencies"
-  assert_file_contains "$TEST_ROOT/uv.log" "pip install --python $FAKE_MANAGED_PYTHON --no-deps --target $site_packages_dir -r $export_file" "compile should install exported dependencies into the staged site-packages directory via uv pip"
+  assert_file_contains "$TEST_ROOT/uv.log" "pip install --python $FAKE_MANAGED_PYTHON --no-deps --prefix $package_home -r $export_file" "compile should install exported dependencies into the staged prefix via uv pip"
 }
 
 test_compile_adds_src_directory_to_pythonpath_when_present() {
