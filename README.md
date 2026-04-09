@@ -4,6 +4,8 @@ The current cloud foundry [python-buildpack](https://github.com/cloudfoundry/pyt
 
 ## Installation
 
+## How to use
+
 ## Testing Locally
 
 Run the buildpack test flow from the repository root:
@@ -14,7 +16,7 @@ make test-buildpack
 
 This command:
 
-- stages `test/my-app` into a temporary build directory
+- stages `test/my-app-*` into a temporary build directory
 - runs `bin/detect`
 - runs `bin/compile`
 - verifies the staged dependencies can be imported
@@ -33,3 +35,17 @@ make start-local
 ```
 
 Then open `http://127.0.0.1:8000/`.
+
+## How to Contribute
+
+Contributions are welcome! Here's how you can get involved:
+
+1. **Report Issues:** Found a bug or have a feature request? [Open an issue](https://github.com/NickChecan/uv-python-buildpack/issues). <br />
+2. **Submit Pull Requests:** Fork the repository, create a new branch, make your changes, and submit a PR. <br />
+3. **Improve Documentation:** Help improve the README or add examples to make setup easier. <br />
+4. **Test & Feedback:** Try Model Mux and provide feedback.
+
+## License
+
+Copyright (c) 2026 Nicholas Coutinho Checan.
+Licensed under the MIT License. See [LICENSE](./LICENSE).
