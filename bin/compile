@@ -1,31 +1,63 @@
 #!/usr/bin/env bash
 # Compile script for Python buildpack with uv support
 
-set -e
+set -euo pipefail
 BUILD_DIR=$1
 CACHE_DIR=$2
 ENV_DIR=$3
+UV_INSTALL_DIR="$CACHE_DIR/uv/bin"
+UV_BIN="$UV_INSTALL_DIR/uv"
+UV_PYTHON_INSTALL_ROOT="$BUILD_DIR/.uv/python"
+PYTHON_SHIM_DIR="$BUILD_DIR/.python/bin"
 
-# Cloud Foundry environments may expose either `python3` or `python`,
-# so resolve one interpreter once and reuse it for the whole build.
-if command -v python3 >/dev/null 2>&1; then
-  PYTHON_BIN="python3"
-elif command -v python >/dev/null 2>&1; then
-  PYTHON_BIN="python"
-else
-  echo "Python interpreter not found. Expected python3 or python on PATH."
-  exit 1
-fi
-
-ensure_pip() {
-  # Some CF Python runtimes do not expose pip by default, so bootstrap it
-  # before the buildpack tries to install uv or exported dependencies.
-  if "$PYTHON_BIN" -m pip --version >/dev/null 2>&1; then
+install_uv() {
+  if command -v uv >/dev/null 2>&1; then
+    UV_BIN="$(command -v uv)"
     return 0
   fi
 
-  echo "pip not found for $PYTHON_BIN. Bootstrapping with ensurepip."
-  "$PYTHON_BIN" -m ensurepip --upgrade
+  if [ -x "$UV_BIN" ]; then
+    return 0
+  fi
+
+  mkdir -p "$UV_INSTALL_DIR"
+
+  echo "uv not found on PATH. Installing standalone uv."
+  if command -v curl >/dev/null 2>&1; then
+    env UV_UNMANAGED_INSTALL="$UV_INSTALL_DIR" sh -c "$(curl -LsSf https://astral.sh/uv/install.sh)"
+  elif command -v wget >/dev/null 2>&1; then
+    env UV_UNMANAGED_INSTALL="$UV_INSTALL_DIR" sh -c "$(wget -qO- https://astral.sh/uv/install.sh)"
+  else
+    echo "Neither curl nor wget is available to install uv."
+    exit 1
+  fi
+}
+
+resolve_python_request() {
+  if [ -f ".python-version" ]; then
+    awk 'NF { print; exit }' .python-version
+  fi
+}
+
+install_managed_python() {
+  local python_request
+
+  install_uv
+
+  # Keep the managed interpreter inside the droplet so the released app can
+  # run without depending on whatever Python may or may not exist on the stack.
+  export UV_PYTHON_INSTALL_DIR="$UV_PYTHON_INSTALL_ROOT"
+
+  python_request="$(resolve_python_request)"
+  if [ -n "$python_request" ]; then
+    echo "Installing Python $python_request from .python-version."
+    "$UV_BIN" python install "$python_request"
+    PYTHON_BIN="$("$UV_BIN" python find --managed-python "$python_request")"
+  else
+    echo "No .python-version found. Installing a managed Python with uv defaults."
+    "$UV_BIN" python install
+    PYTHON_BIN="$("$UV_BIN" python find --managed-python)"
+  fi
 }
 
 cd "$BUILD_DIR"
@@ -34,17 +66,20 @@ cd "$BUILD_DIR"
 # metadata and the lockfile are present.
 if [ -f "pyproject.toml" ] && [ -f "uv.lock" ]; then
   echo "Detected uv project with lockfile. Installing dependencies with uv."
+  install_managed_python
+
   # Keep installer caches inside the buildpack cache directory so repeated
   # builds are faster and do not depend on user-specific cache locations.
   export PIP_CACHE_DIR="$CACHE_DIR/pip"
   export UV_CACHE_DIR="$CACHE_DIR/uv"
 
   mkdir -p "$PIP_CACHE_DIR" "$UV_CACHE_DIR"
+  mkdir -p "$PYTHON_SHIM_DIR"
 
-  # Install uv into the selected interpreter so the buildpack can export the
-  # exact locked dependency set from the app's uv.lock file.
-  ensure_pip
-  "$PYTHON_BIN" -m pip install uv
+  # The release script still looks for `python3`/`python` on PATH, so provide
+  # stable shim names that point at the uv-managed interpreter we just installed.
+  ln -sf "$PYTHON_BIN" "$PYTHON_SHIM_DIR/python3"
+  ln -sf "$PYTHON_BIN" "$PYTHON_SHIM_DIR/python"
 
   PYTHON_VERSION=$("$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
   # Stage dependencies into a buildpack-owned location instead of a local venv
@@ -57,19 +92,23 @@ if [ -f "pyproject.toml" ] && [ -f "uv.lock" ]; then
   mkdir -p "$SITE_PACKAGES_DIR" "$PROFILE_DIR"
 
   # Export the exact locked dependency set from uv, then install those
-  # packages into the staged site-packages directory.
-  uv export --locked --format requirements-txt --no-emit-local -o "$EXPORT_FILE"
-  "$PYTHON_BIN" -m pip install --no-deps --target "$SITE_PACKAGES_DIR" -r "$EXPORT_FILE"
+  # packages into the staged site-packages directory. Use `uv pip` instead of
+  # `python -m pip` because uv-managed Python installations are intentionally
+  # marked as externally managed.
+  "$UV_BIN" export --locked --format requirements-txt --no-emit-local -o "$EXPORT_FILE"
+  "$UV_BIN" pip install --python "$PYTHON_BIN" --no-deps --target "$SITE_PACKAGES_DIR" -r "$EXPORT_FILE"
 
   # Add the staged packages to PYTHONPATH so the app can import them at runtime.
   # If the project uses a `src/` layout, include that too because the local
   # project itself is not installed by the exported third-party requirements.
   if [ -d "$SRC_DIR" ]; then
     cat > "$PROFILE_DIR/python.sh" <<EOF
+export PATH="$PYTHON_SHIM_DIR:\${PATH}"
 export PYTHONPATH="$SRC_DIR:$SITE_PACKAGES_DIR:\${PYTHONPATH}"
 EOF
   else
     cat > "$PROFILE_DIR/python.sh" <<EOF
+export PATH="$PYTHON_SHIM_DIR:\${PATH}"
 export PYTHONPATH="$SITE_PACKAGES_DIR:\${PYTHONPATH}"
 EOF
   fi
