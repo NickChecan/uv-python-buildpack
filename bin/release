@@ -10,6 +10,8 @@ else
 fi
 
 resolve_script_target() {
+  # Parse pyproject.toml with Python so we can safely read TOML instead of
+  # relying on brittle grep/awk parsing.
   "$PYTHON_BIN" -c '
 import sys
 try:
@@ -29,6 +31,8 @@ print(scripts.get(project_name) or scripts.get("start", ""))
 }
 
 build_python_entrypoint() {
+  # Convert a console-script target like `server.main:start` into a command
+  # that invokes the same callable directly with the resolved interpreter.
   local target="$1"
   local module_name="${target%%:*}"
   local function_name="${target##*:}"
