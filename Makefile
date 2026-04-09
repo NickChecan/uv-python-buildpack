@@ -1,4 +1,4 @@
-APP_DIR := test/my-app
+APP_DIR := test/my-app-1
 BUILD_DIR := /tmp/uv-bp-build
 CACHE_DIR := /tmp/uv-bp-cache
 ENV_DIR := /tmp/uv-bp-env
@@ -24,4 +24,15 @@ test-buildpack: clean-test-buildpack
 
 # Start the staged sample app locally using the dependencies prepared by `test-buildpack`.
 start-local:
-	cd $(BUILD_DIR) && /bin/bash -lc 'source .profile.d/python.sh && $(PYTHON_BIN) main.py'
+	@cd $(BUILD_DIR) && /bin/bash -lc '\
+		source .profile.d/python.sh && \
+		if [ -f Procfile ]; then \
+			WEB_CMD=$$(awk -F": " '\''$$1 == "web" { print $$2; exit }'\'' Procfile); \
+		else \
+			WEB_CMD=$$($(BUILDPACK_DIR)/bin/release | awk -F": " '\''$$1 ~ /web/ { print $$2; exit }'\''); \
+		fi; \
+		if [ -z "$$WEB_CMD" ]; then \
+			echo "Could not determine a web command to run locally."; \
+			exit 1; \
+		fi; \
+		eval "$$WEB_CMD"'

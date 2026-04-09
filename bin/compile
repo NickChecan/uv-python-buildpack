@@ -35,6 +35,7 @@ if [ -f "pyproject.toml" ] && [ -f "uv.lock" ]; then
   PYTHON_VERSION=$("$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
   # Stage dependencies into a buildpack-owned location instead of a local venv.
   SITE_PACKAGES_DIR="$BUILD_DIR/.python_packages/lib/python${PYTHON_VERSION}/site-packages"
+  SRC_DIR="$BUILD_DIR/src"
   PROFILE_DIR="$BUILD_DIR/.profile.d"
   EXPORT_FILE="$BUILD_DIR/.uv-export-requirements.txt"
 
@@ -42,13 +43,21 @@ if [ -f "pyproject.toml" ] && [ -f "uv.lock" ]; then
 
   # Export the exact locked dependency set from uv, then install those
   # packages into the staged site-packages directory.
-  uv export --locked --format requirements-txt -o "$EXPORT_FILE"
+  uv export --locked --format requirements-txt --no-emit-local -o "$EXPORT_FILE"
   "$PYTHON_BIN" -m pip install --no-deps --target "$SITE_PACKAGES_DIR" -r "$EXPORT_FILE"
 
   # Add the staged packages to PYTHONPATH so the app can import them at runtime.
-  cat > "$PROFILE_DIR/python.sh" <<EOF
+  # If the project uses a `src/` layout, include that too because the local
+  # project itself is not installed by the exported third-party requirements.
+  if [ -d "$SRC_DIR" ]; then
+    cat > "$PROFILE_DIR/python.sh" <<EOF
+export PYTHONPATH="$SRC_DIR:$SITE_PACKAGES_DIR:\${PYTHONPATH}"
+EOF
+  else
+    cat > "$PROFILE_DIR/python.sh" <<EOF
 export PYTHONPATH="$SITE_PACKAGES_DIR:\${PYTHONPATH}"
 EOF
+  fi
 else
   echo "No supported uv project found. Expected both pyproject.toml and uv.lock."
   exit 1
