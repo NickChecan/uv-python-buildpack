@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Release script for Python buildpack with uv support
 
+set -euo pipefail
+
 if [ -x ".python/bin/python3" ]; then
   PYTHON_BIN=".python/bin/python3"
 elif [ -x ".python/bin/python" ]; then

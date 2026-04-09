@@ -65,14 +65,26 @@ install_managed_python() {
   fi
 }
 
+write_python_shim() {
+  local shim_path="$1"
+  local shim_name="$2"
+  local managed_python_relative="${PYTHON_BIN#"$BUILD_DIR"/}"
+
+  cat > "$shim_path" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+APP_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")/../.." && pwd)"
+exec "\$APP_DIR/$managed_python_relative" "\$@"
+EOF
+  chmod +x "$shim_path"
+}
+
 cd "$BUILD_DIR"
 
 # Only treat the app as a supported uv project when both the project
 # metadata and the lockfile are present.
 if [ -f "pyproject.toml" ] && [ -f "uv.lock" ]; then
   echo "Detected uv project with lockfile. Installing dependencies with uv."
-  install_managed_python
-
   # Keep installer caches inside the buildpack cache directory so repeated
   # builds are faster and do not depend on user-specific cache locations.
   export PIP_CACHE_DIR="$CACHE_DIR/pip"
@@ -81,10 +93,13 @@ if [ -f "pyproject.toml" ] && [ -f "uv.lock" ]; then
   mkdir -p "$PIP_CACHE_DIR" "$UV_CACHE_DIR"
   mkdir -p "$PYTHON_SHIM_DIR"
 
+  install_managed_python
+
   # The release script still looks for `python3`/`python` on PATH, so provide
-  # stable shim names that point at the uv-managed interpreter we just installed.
-  ln -sf "$PYTHON_BIN" "$PYTHON_SHIM_DIR/python3"
-  ln -sf "$PYTHON_BIN" "$PYTHON_SHIM_DIR/python"
+  # wrapper shims that resolve the managed interpreter relative to the droplet
+  # instead of capturing an absolute staging path.
+  write_python_shim "$PYTHON_SHIM_DIR/python3" "python3"
+  write_python_shim "$PYTHON_SHIM_DIR/python" "python"
 
   PYTHON_VERSION=$("$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
   # Stage dependencies into a buildpack-owned location instead of a local venv
