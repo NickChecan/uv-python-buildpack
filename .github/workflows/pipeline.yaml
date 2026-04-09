@@ -89,7 +89,7 @@ jobs:
           node-version: "22"
 
       - name: Install semantic-release
-        run: npm install --no-save semantic-release @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github @semantic-release/exec conventional-changelog-conventionalcommits
+        run: npm install --no-save semantic-release @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github @semantic-release/exec @semantic-release/git conventional-changelog-conventionalcommits
 
       - name: Publish semantic release
         env:
