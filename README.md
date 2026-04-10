@@ -1,5 +1,10 @@
 # Cloud Foundry UV Python Buildpack
 
+[![GitHub Release](https://img.shields.io/github/v/release/NickChecan/uv-python-buildpack)](https://github.com/NickChecan/uv-python-buildpack/releases/latest)
+[![Pipeline](https://github.com/NickChecan/uv-python-buildpack/actions/workflows/pipeline.yaml/badge.svg)](https://github.com/NickChecan/uv-python-buildpack/actions/workflows/pipeline.yaml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
+
 The standard Cloud Foundry [python-buildpack](https://github.com/cloudfoundry/python-buildpack) does not focus on modern Python workflows built around [uv](https://docs.astral.sh/uv/). This custom buildpack fills that gap by detecting uv-managed applications, installing a managed Python runtime, and staging locked dependencies for Cloud Foundry.
 
 ## What this buildpack expects
@@ -38,81 +43,44 @@ becomes:
 python3 -c "from server.main import run; run()"
 ```
 
+> **Note:** `uv` is only available during staging, not at runtime. All dependencies are already baked into the droplet by `bin/compile`, so `uv run` is unnecessary and would repeat that work on every start. When specifying commands through the `manifest` or the `Procfile`, use a direct Python invocation instead.
+
+## How to use
+
+You can reference the github repository URI or a specific GitHub release.
+
+| Project Example | Description | Deployment Script | Buildpack Reference |
+|---|---|---|---|
+| [my-app-script](./examples/my-app-script/) | `src/` layout app with a console script entry point defined in `[project.scripts]` | [`pyproject.toml`](./examples/my-app-script/pyproject.toml) | [`manifest.yml`](./examples/my-app-script/manifest.yml) |
+| [my-app-manifest](./examples/my-app-manifest/) | App with a custom start command specified directly in the CF manifest | [`manifest.yml`](./examples/my-app-manifest/manifest.yml) | [`manifest.yml`](./examples/my-app-manifest/manifest.yml) |
+| [my-app-procfile](./examples/my-app-procfile/) | App using a `Procfile` to define the web process | [`Procfile`](./examples/my-app-procfile/Procfile) | [`manifest.yml`](./examples/my-app-procfile/manifest.yml) |
+| [my-app-mta](./examples/my-app-mta/) | MTA deployment for SAP BTP Cloud Foundry | [`pyproject.toml`](./examples/my-app-mta/pyproject.toml) | [`mta.yaml`](./examples/my-app-mta/mta.yaml) |
+
+Check the entire projects inside the [examples](./examples/) directory for more details on how to make use of this buildpack.
+
 ## Installing the buildpack
 
-### Option 1: Use a packaged buildpack zip directly
+Download the latest packaged zip from the [GitHub Releases](https://github.com/NickChecan/uv-python-buildpack/releases) page, then upload it to your CF environment.
 
-Package the buildpack from the repository root:
-
-```sh
-make build
-```
-
-Then deploy an app with the generated zip:
+To upload the buildpack:
 
 ```sh
-cf push my-app -p path/to/app -b /full/path/to/python-uv_buildpack-cached-vX.Y.Z.zip
+cf create-buildpack python-uv-buildpack python-uv_buildpack-cached-vX.Y.Z.zip 1 --enable
 ```
 
-If you use a manifest, you can also pass the buildpack zip on the command line:
+The position (`1`) controls priority when CF auto-detects buildpacks. Adjust as needed relative to your other buildpacks.
 
-```sh
-cf push -f manifest.yml -b /full/path/to/python-uv_buildpack-cached-vX.Y.Z.zip
-```
-
-### Option 2: Upload the buildpack to Cloud Foundry once
-
-Create a reusable named buildpack in your foundation:
-
-```sh
-cf create-buildpack python-uv-buildpack python-uv_buildpack-cached-v1.0.10.zip 1 --enable
-```
-
-Then deploy apps with:
-
-```sh
-cf push my-app -b python-uv-buildpack
-```
-
-Or in `manifest.yml`:
+... then reference it in your app's `manifest.yaml` or `mta.yaml`:**
 
 ```yaml
----
-applications:
-  - name: my-app
-    path: .
-    buildpacks:
-      - python-uv-buildpack
+buildpacks:
+  - python-uv-buildpack
 ```
 
-### Option 3: Use a published GitHub Release artifact
-
-If you publish packaged buildpack zips in GitHub Releases, you can deploy with a release URL:
+To update an existing buildpack after a new release:
 
 ```sh
-cf push my-app -b https://github.com/NickChecan/uv-python-buildpack/releases/download/vX.Y.Z/python-uv_buildpack-cached-vX.Y.Z.zip
-```
-
-## Example app manifests
-
-If you pass the buildpack with `cf push -b ...`, you do not need a `buildpacks:` entry in the app manifest.
-
-Example:
-
-```yaml
----
-applications:
-  - name: my-app
-    path: .
-    memory: 256M
-    disk_quota: 512M
-    instances: 1
-```
-
-Then:
-
-```sh
-cf push -f manifest.yml -b ../../python-uv_buildpack-cached-vX.Y.Z.zip
+cf update-buildpack python-uv-buildpack -p python-uv_buildpack-cached-vX.Y.Z.zip --enable
 ```
 
 ## Testing locally
