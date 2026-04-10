@@ -1,28 +1,27 @@
 # Cloud Foundry UV Python Buildpack
 
-The current cloud foundry [python-buildpack](https://github.com/cloudfoundry/python-buildpack) doesn't support modern python tools, such as [uv](https://docs.astral.sh/uv/), so I created this custom buildpack to bridge the gap.
+The standard Cloud Foundry [python-buildpack](https://github.com/cloudfoundry/python-buildpack) does not focus on modern Python workflows built around [uv](https://docs.astral.sh/uv/). This custom buildpack fills that gap by detecting uv-managed applications, installing a managed Python runtime, and staging locked dependencies for Cloud Foundry.
 
-## Installation
+## What this buildpack expects
 
-## How to use
+For an app to be detected by this buildpack, it must include:
 
+- `pyproject.toml`
+- `uv.lock`
 
-### Defining the initialization script
+If the app includes a `.python-version` file, the buildpack uses that version when installing Python.
 
-This buildpack detects uv-managed apps when both `pyproject.toml` and `uv.lock` are present.
+## How startup is chosen
 
-At staging time, `bin/compile` exports the locked dependencies from `uv.lock`, installs them into `.python_packages`, and writes a `.profile.d/python.sh` file so the app can import those staged packages at runtime. If the app uses a `src/` layout, that `src/` directory is also added to `PYTHONPATH`.
+At release time, the buildpack chooses the web command in this order:
 
-At release time, `bin/release` chooses the web command in this order:
-
-1. If the app has a `Procfile`, the buildpack does not generate a default process type and Cloud Foundry uses the `Procfile`.
-2. If `pyproject.toml` exists and `[project.scripts]` contains a script named exactly the same as `[project].name`, that script is used.
-3. Otherwise, if `[project.scripts]` contains a `start` script, that script is used.
+1. If the app has a `Procfile`, Cloud Foundry uses it directly.
+2. Otherwise, if `pyproject.toml` defines a console script whose name matches `[project].name`, that script is used.
+3. Otherwise, if `[project.scripts]` defines `start`, that script is used.
 4. Otherwise, if `main.py` exists, the buildpack uses `python3 main.py`.
 5. Otherwise, if `app.py` exists, the buildpack uses `python3 app.py`.
-6. If none of the above are present, the buildpack emits an empty `web` process and you must provide your own entrypoint.
 
-For `pyproject.toml` scripts, the buildpack converts a console-script target such as:
+For example, this `pyproject.toml`:
 
 ```toml
 [project]
@@ -33,15 +32,90 @@ my-app = "server.main:run"
 start = "server.main:start"
 ```
 
-into a process command like:
+becomes:
 
 ```sh
 python3 -c "from server.main import run; run()"
 ```
 
-In the example above, `my-app` wins over `start` because it matches `[project].name`.
+## Installing the buildpack
 
-## Testing Locally
+### Option 1: Use a packaged buildpack zip directly
+
+Package the buildpack from the repository root:
+
+```sh
+make build
+```
+
+Then deploy an app with the generated zip:
+
+```sh
+cf push my-app -p path/to/app -b /full/path/to/python-uv_buildpack-cached-vX.Y.Z.zip
+```
+
+If you use a manifest, you can also pass the buildpack zip on the command line:
+
+```sh
+cf push -f manifest.yml -b /full/path/to/python-uv_buildpack-cached-vX.Y.Z.zip
+```
+
+### Option 2: Upload the buildpack to Cloud Foundry once
+
+Create a reusable named buildpack in your foundation:
+
+```sh
+cf create-buildpack python-uv-buildpack python-uv_buildpack-cached-v1.0.10.zip 1 --enable
+```
+
+Then deploy apps with:
+
+```sh
+cf push my-app -b python-uv-buildpack
+```
+
+Or in `manifest.yml`:
+
+```yaml
+---
+applications:
+  - name: my-app
+    path: .
+    buildpacks:
+      - python-uv-buildpack
+```
+
+### Option 3: Use a published GitHub Release artifact
+
+If you publish packaged buildpack zips in GitHub Releases, you can deploy with a release URL:
+
+```sh
+cf push my-app -b https://github.com/NickChecan/uv-python-buildpack/releases/download/vX.Y.Z/python-uv_buildpack-cached-vX.Y.Z.zip
+```
+
+## Example app manifests
+
+If you pass the buildpack with `cf push -b ...`, you do not need a `buildpacks:` entry in the app manifest.
+
+Example:
+
+```yaml
+---
+applications:
+  - name: my-app
+    path: .
+    memory: 256M
+    disk_quota: 512M
+    instances: 1
+```
+
+Then:
+
+```sh
+cf push -f manifest.yml -b ../../python-uv_buildpack-cached-vX.Y.Z.zip
+```
+
+## Testing locally
 
 Run the buildpack test flow from the repository root:
 
@@ -51,25 +125,25 @@ make test-buildpack
 
 This command:
 
-- stages `test/my-app-*` into a temporary build directory
+- stages the sample app into a temporary build directory
 - runs `bin/detect`
 - runs `bin/compile`
-- verifies the staged dependencies can be imported
+- verifies the staged dependencies are importable
 - prints the `bin/release` output
 
-You can also run other smoke test projects by specifying its directory. For example:
+You can run a different smoke fixture by passing its directory:
 
 ```sh
 make test-buildpack APP_DIR=test/smoke/my-app-2
 ```
 
-If you want to remove the temporary staging directories before or after a run:
+To clean the temporary staging directories:
 
 ```sh
 make clean-test-buildpack
 ```
 
-If you want to start the staged sample app locally after `make test-buildpack` succeeds:
+To start the staged sample app locally after a successful test build:
 
 ```sh
 make start-local
@@ -77,14 +151,28 @@ make start-local
 
 Then open `http://127.0.0.1:8000/`.
 
-## How to Contribute
+To run the full unit test suite:
 
-Contributions are welcome! Here's how you can get involved:
+```sh
+make unit-test
+```
 
-1. **Report Issues:** Found a bug or have a feature request? [Open an issue](https://github.com/NickChecan/uv-python-buildpack/issues). <br />
-2. **Submit Pull Requests:** Fork the repository, create a new branch, make your changes, and submit a PR. <br />
-3. **Improve Documentation:** Help improve the README or add examples to make setup easier. <br />
-4. **Test & Feedback:** Try Model Mux and provide feedback.
+To run all smoke fixtures:
+
+```sh
+make smoke-test
+```
+
+See the project [Makefile](./Makefile) for the supported local commands.
+
+## Contributing
+
+Contributions are welcome.
+
+1. Report bugs or request features by opening an [issue](https://github.com/NickChecan/uv-python-buildpack/issues).
+2. Fork the repository, create a branch, make your changes, and open a pull request.
+3. Improve the documentation or examples to make the buildpack easier to adopt.
+4. Run the local tests before submitting changes when possible.
 
 ## License
 

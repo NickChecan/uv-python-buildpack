@@ -60,7 +60,7 @@ jobs:
         run: go install github.com/cloudfoundry/libbuildpack/packager/buildpack-packager@latest
 
       - name: Package buildpack
-        run: buildpack-packager build -cached -any-stack
+        run: make build
 
   release-buildpack:
     name: Release Buildpack

@@ -49,3 +49,7 @@ smoke-test:
 # Run all lightweight script-level unit tests together.
 unit-test: 
 	@./scripts/unit-test.sh
+
+# Build a cached buildpack artifact for testing with `pack` and `pack build`.
+build:
+	@buildpack-packager build -cached -any-stack
