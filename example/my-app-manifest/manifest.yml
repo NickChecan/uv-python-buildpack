@@ -7,3 +7,4 @@ applications:
     buildpacks:
       - https://github.com/NickChecan/uv-python-buildpack
     random-route: true
+    command: python3 src/my_app_manifest/main.py

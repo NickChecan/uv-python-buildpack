@@ -9,9 +9,6 @@ dependencies = [
     "uvicorn[standard]>=0.44.0",
 ]
 
-[project.scripts]
-start = "my_app_manifest.main:start"
-
 [build-system]
 requires = ["uv_build>=0.11.5,<0.12.0"]
 build-backend = "uv_build"
