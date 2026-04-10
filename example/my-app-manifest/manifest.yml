@@ -1,0 +1,9 @@
+---
+applications:
+  - name: my-app-manifest
+    memory: 256M
+    disk_quota: 512M
+    instances: 1
+    buildpacks:
+      - https://github.com/NickChecan/uv-python-buildpack
+    random-route: true
