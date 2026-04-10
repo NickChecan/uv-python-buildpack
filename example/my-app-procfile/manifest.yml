@@ -1,6 +1,6 @@
 ---
 applications:
-  - name: my-app
+  - name: my-app-procfile
     memory: 256M
     disk_quota: 512M
     instances: 1

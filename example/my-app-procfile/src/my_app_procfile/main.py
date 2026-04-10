@@ -12,4 +12,4 @@ def hello_world():
 
 def start() -> None:
     port = int(os.environ.get("PORT", "8000"))
-    uvicorn.run("my_app.main:app", host="0.0.0.0", port=port, reload=False)
+    uvicorn.run("my_app_procfile.main:app", host="0.0.0.0", port=port, reload=False)

@@ -1,0 +1,1 @@
+web: python -c "from my_app_procfile.main import start; start()"

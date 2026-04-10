@@ -1,1 +1,0 @@
-web: python -c "from my_app.main import start; start()"

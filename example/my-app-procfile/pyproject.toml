@@ -1,5 +1,5 @@
 [project]
-name = "my-app"
+name = "my-app-procfile"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
-start = "my_app.main:start"
+start = "my_app_procfile.main:start"
 
 [build-system]
 requires = ["uv_build>=0.11.5,<0.12.0"]

@@ -110,7 +110,7 @@ wheels = [
 ]
 
 [[package]]
-name = "my-app"
+name = "my-app-procfile"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
