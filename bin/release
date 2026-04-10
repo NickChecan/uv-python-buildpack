@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+# Prefer the Python interpreter staged by `bin/compile`, but fall back to a
+# system interpreter so local development and unit tests can still run.
 if [ -x ".python/bin/python3" ]; then
   PYTHON_BIN=".python/bin/python3"
 elif [ -x ".python/bin/python" ]; then
@@ -47,12 +49,15 @@ build_python_entrypoint() {
 
 DEFAULT_WEB_PROCESS=""
 
-# If the app provides its own Procfile, let Cloud Foundry use that.
+# Procfile wins. When it exists, Cloud Foundry will read it directly and the
+# buildpack should not emit a generated default process type.
 if [ -f "Procfile" ]; then
   exit 0
 fi
 
-# Prefer a script named after `project.name`, then fall back to `start`.
+# Without a Procfile, try to synthesize a Python command from pyproject.toml.
+# We prefer a console script that matches `project.name`, then fall back to
+# a generic `start` script if one exists.
 if [ -f "pyproject.toml" ]; then
   SCRIPT_TARGET="$(resolve_script_target)"
   if [ -n "$SCRIPT_TARGET" ]; then
@@ -60,6 +65,7 @@ if [ -f "pyproject.toml" ]; then
   fi
 fi
 
+# If there are no console scripts, fall back to common single-file app layouts.
 if [ -z "$DEFAULT_WEB_PROCESS" ] && [ -f "main.py" ]; then
   DEFAULT_WEB_PROCESS="${PYTHON_BIN} main.py"
 fi
