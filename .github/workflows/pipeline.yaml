@@ -4,7 +4,11 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "bin/**"
   pull_request:
+    paths:
+      - "bin/**"
 
 jobs:
   unit-test:
