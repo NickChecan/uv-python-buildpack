@@ -22,7 +22,7 @@ test-buildpack: clean-test-buildpack
 	$(BUILDPACK_DIR)/bin/compile $(BUILD_DIR) $(CACHE_DIR) $(ENV_DIR)
 	# Confirm staged dependencies are importable before checking the release metadata.
 	cd $(BUILD_DIR) && /bin/bash -lc 'source .profile.d/python.sh && $(PYTHON_BIN) -c "import fastapi; print(fastapi.__version__)"'
-	cd $(BUILD_DIR) && $(BUILDPACK_DIR)/bin/release
+	$(BUILDPACK_DIR)/bin/release $(BUILD_DIR)
 
 # Start the staged sample app locally using the dependencies prepared by `test-buildpack`.
 start-local:

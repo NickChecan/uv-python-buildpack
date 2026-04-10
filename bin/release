@@ -3,6 +3,9 @@
 
 set -euo pipefail
 
+BUILD_DIR="${1:?BUILD_DIR argument is required}"
+cd "$BUILD_DIR"
+
 # Prefer the Python interpreter staged by `bin/compile`, but fall back to a
 # system interpreter so local development and unit tests can still run.
 if [ -x ".python/bin/python3" ]; then

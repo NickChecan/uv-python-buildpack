@@ -77,8 +77,7 @@ run_release() {
 
   set +e
   (
-    cd "$app_dir"
-    PATH="$FAKE_BIN_DIR:/usr/bin:/bin" REAL_PYTHON3="$REAL_PYTHON3" "$RELEASE_SCRIPT"
+    PATH="$FAKE_BIN_DIR:/usr/bin:/bin" REAL_PYTHON3="$REAL_PYTHON3" "$RELEASE_SCRIPT" "$app_dir"
   ) >"$output_file" 2>&1
   status=$?
   set -e
