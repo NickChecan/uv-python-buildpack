@@ -1,0 +1,20 @@
+_schema-version: '3.1'
+ID: my-app-mta
+version: 0.1.0
+description: FastAPI example app deployed via MTA using the uv Python buildpack
+
+modules:
+  - name: my-app-mta
+    type: python
+    path: .
+    build-parameters:
+      ignore:
+        - ".venv/"
+        - "__pycache__/"
+        - "*.pyc"
+    parameters:
+      buildpacks:
+        - https://github.com/NickChecan/uv-python-buildpack
+      memory: 256M
+      disk-quota: 512M
+      instances: 1
