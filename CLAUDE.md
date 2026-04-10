@@ -68,6 +68,8 @@ Console scripts like `server.main:start` are converted to `python3 -c "from serv
 - **Relative path shims**: Python wrapper scripts must use paths relative to the app root, not absolute paths, because CF relocates the droplet between staging and runtime.
 - **Dual layout support**: `.profile.d/python.sh` must handle both `src/` layout and flat layout for `PYTHONPATH`.
 - **No external runtime deps**: The buildpack must work without `python` or `uv` pre-installed on the staging machine.
+- **`bin/release` requires `BUILD_DIR` as `$1`**: All three bin scripts now `cd` into their first argument. The Makefile and unit tests pass the directory explicitly — do not call `bin/release` without arguments.
+- **MTA deployments must exclude `.venv` via `build-parameters.ignore`**: `mbt build` does not respect `.cfignore` or `.gitignore`. A local `.venv` built on macOS will be packaged into the `.mtar` and cause an exec format error on the Linux CF stack. Always add `.venv/` to `build-parameters.ignore` in `mta.yaml`.
 
 ### Release Process
 
